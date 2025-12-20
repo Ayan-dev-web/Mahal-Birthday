@@ -1342,7 +1342,7 @@
       const state = {
         currentScene: 1,
         totalScenes: 6,
-        musicPlaying: false,
+        musicPlaying: true, // Changed to true for auto-play
         candleBlown: false,
         typewriterTexts: [
           "Today is not just another day...",
@@ -1400,7 +1400,7 @@
         confettiSound.volume = 0.4;
         magicSound.volume = 0.6;
         
-        // Set scene music volumes
+        // Set scene music volumes and properties
         Object.values(sceneMusics).forEach(music => {
           music.volume = 0.2;
           music.loop = true;
@@ -1409,12 +1409,23 @@
         // Add special wish styles
         addSpecialStyles();
         
-        // Start scene 1 music
-        playSceneMusic(1);
+        // Start music automatically
+        startMusic();
         
         // Initially hide the button in phase 3
         document.getElementById("btnNext3").style.opacity = "0";
         document.getElementById("btnNext3").style.visibility = "hidden";
+      }
+
+      // Start music automatically
+      function startMusic() {
+        // Set initial music state
+        state.musicPlaying = true;
+        musicIcon.className = "fas fa-volume-up";
+        visualizer.style.opacity = '1';
+        
+        // Start scene 1 music
+        playSceneMusic(1);
       }
 
       // Add special styling for phase 2
@@ -1510,7 +1521,7 @@
       function playSceneMusic(sceneNumber) {
         if (!state.musicPlaying) return;
         
-        // Stop all scene music
+        // Stop all scene music first
         Object.values(sceneMusics).forEach(music => {
           music.pause();
           music.currentTime = 0;
@@ -1518,7 +1529,17 @@
         
         // Play current scene music
         if (sceneMusics[sceneNumber]) {
-          sceneMusics[sceneNumber].play().catch(e => console.log("Scene music play prevented:", e));
+          sceneMusics[sceneNumber].play().catch(e => {
+            console.log("Scene music play prevented, trying again...:", e);
+            // Try again with user interaction
+            setTimeout(() => {
+              if (state.musicPlaying) {
+                sceneMusics[sceneNumber].play().catch(e2 => {
+                  console.log("Scene music play failed again:", e2);
+                });
+              }
+            }, 100);
+          });
         }
       }
 
@@ -1654,7 +1675,7 @@
         // Hide current scene
         scenes[state.currentScene - 1].classList.add("hidden");
         
-        // Stop current scene music
+        // Stop current scene music before changing scenes
         if (sceneMusics[state.currentScene]) {
           sceneMusics[state.currentScene].pause();
           sceneMusics[state.currentScene].currentTime = 0;
@@ -1720,14 +1741,6 @@
 
       // Start celebration effects
       function startCelebration() {
-        // Play music if not already playing
-        if (!state.musicPlaying) {
-          backgroundMusic.play().catch(e => console.log("Autoplay prevented:", e));
-          state.musicPlaying = true;
-          musicIcon.className = "fas fa-volume-up";
-          visualizer.style.opacity = '1';
-        }
-
         // Play confetti sound
         confettiSound.currentTime = 0;
         confettiSound.play();
@@ -2066,12 +2079,13 @@
       // Toggle background music
       function toggleMusic() {
         if (state.musicPlaying) {
-          backgroundMusic.pause();
+          // Pause all music
           Object.values(sceneMusics).forEach(music => music.pause());
+          backgroundMusic.pause();
           musicIcon.className = "fas fa-volume-mute";
           visualizer.style.opacity = '0';
         } else {
-          backgroundMusic.play().catch(e => console.log("Play prevented:", e));
+          // Resume music for current scene
           playSceneMusic(state.currentScene);
           musicIcon.className = "fas fa-volume-up";
           visualizer.style.opacity = '1';
@@ -2099,8 +2113,6 @@
         state.phase3LinesRevealed = 0;
 
         // Stop all music
-        backgroundMusic.pause();
-        backgroundMusic.currentTime = 0;
         Object.values(sceneMusics).forEach(music => {
           music.pause();
           music.currentTime = 0;
@@ -2150,7 +2162,7 @@
         // Update progress
         updateProgress();
         
-        // Start scene 1 music
+        // Restart music if it was playing
         if (state.musicPlaying) {
           playSceneMusic(1);
         }
@@ -2210,6 +2222,14 @@
         `;
         document.head.appendChild(style);
       });
+
+      // Handle browser autoplay policies
+      document.addEventListener('click', function() {
+        // Try to play music on first user interaction if not already playing
+        if (!state.musicPlaying) {
+          startMusic();
+        }
+      }, { once: true });
     </script>
   </body>
 </html>
